@@ -187,7 +187,7 @@
   const START_HOUR = 5, END_HOUR = 23, HALF_PX = 30;
   const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
   const DATES = { Monday:21, Tuesday:22, Wednesday:23, Thursday:24, Friday:25, Saturday:26, Sunday:27 };
-  const STORAGE_KEY = "adeev_schedule_v1";
+  const STORAGE_KEY = "adeev_schedule_v2";
   const DEFAULT_SCHEDULE = {
     Monday: [
       { name: "Stretches + Meditation + Running", start: 6.0, dur: 1.5, cat: "fitness" },
@@ -204,7 +204,9 @@
     ],
     Tuesday: [
       { name: "Surfing", start: 5.25, dur: 6.75, cat: "fitness" },
+      { name: "Socialising", start: 12.0, dur: 0.5, cat: "personal" },
       { name: "Finance Learning", start: 13.5, dur: 1.0, cat: "learning" },
+      { name: "Socialising", start: 14.5, dur: 0.5, cat: "personal" },
       { name: "Write Research Paper", start: 15.25, dur: 1.75, cat: "work" },
       { name: "Build Portfolio Website", start: 17.5, dur: 1.0, cat: "work" },
       { name: "Fix LinkedIn/GitHub Accounts", start: 19.0, dur: 1.0, cat: "admin" },
@@ -228,9 +230,11 @@
     ],
     Thursday: [
       { name: "Surfing", start: 5.25, dur: 6.75, cat: "fitness" },
+      { name: "Socialising", start: 12.0, dur: 0.5, cat: "personal" },
       { name: "Finance Learning", start: 13.5, dur: 1.0, cat: "learning" },
       { name: "Write Research Paper", start: 15.25, dur: 1.75, cat: "work" },
       { name: "Explore Claude & Skills", start: 17.5, dur: 0.75, cat: "work" },
+      { name: "Socialising", start: 18.5, dur: 0.5, cat: "personal" },
       { name: "Fix LinkedIn/GitHub Accounts", start: 19.0, dur: 1.0, cat: "admin" },
       { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
       { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
