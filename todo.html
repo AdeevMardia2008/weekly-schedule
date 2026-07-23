@@ -67,10 +67,10 @@
   .addbar input[type=text] { flex: 1; background: none; border: none; color: var(--text); font-size: 14.5px; font-family: inherit; padding: 9px 0; }
   .addbar input[type=text]:focus { outline: none; }
   .addbar input[type=text]::placeholder { color: var(--faint); }
-  .date-pick { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; padding: 6px 10px; border-radius: 8px; cursor: pointer; position: relative; }
+  .date-pick { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; padding: 6px 10px; border-radius: 8px; cursor: pointer; position: relative; border: none; font-family: inherit; background: transparent; }
   .date-pick:hover { background: var(--panel-2); color: var(--text); }
   .date-pick .material-icons-outlined { font-size: 16px; }
-  .date-pick input[type=date] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .date-pick input[type=date] { position: absolute; left: 10px; bottom: 2px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   .add-go { background: var(--accent); border: none; color: #fff; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .add-go:hover { filter: brightness(1.08); }
   .add-go .material-icons-outlined { font-size: 20px; }
@@ -129,11 +129,11 @@
         <div class="addbar-inner">
           <span class="material-icons-outlined lead">add</span>
           <input type="text" id="newTitle" placeholder="Add a task" autocomplete="off">
-          <label class="date-pick" id="datePickLabel">
+          <button type="button" class="date-pick" id="datePickLabel">
             <span class="material-icons-outlined">event</span>
             <span id="datePickText">Set date</span>
-            <input type="date" id="newDate">
-          </label>
+            <input type="date" id="newDate" tabindex="-1" aria-hidden="true">
+          </button>
           <button class="add-go" id="addGo" title="Add"><span class="material-icons-outlined">arrow_upward</span></button>
         </div>
       </div>
@@ -358,6 +358,13 @@
   document.getElementById("dNote").onblur = (e) => { const t = cur(); if (t && e.target.value !== t.note) persist(t, { note: e.target.value }); };
   function cur(){ return todos.find(x => x.id === selectedId); }
   const newDate = document.getElementById("newDate");
+  document.getElementById("datePickLabel").addEventListener("click", (e) => {
+    e.preventDefault();
+    try {
+      if (typeof newDate.showPicker === "function") newDate.showPicker();
+      else { newDate.focus(); newDate.click(); }
+    } catch (err) { newDate.focus(); }
+  });
   newDate.onchange = () => {
     document.getElementById("datePickText").textContent = newDate.value ? fmtDate(newDate.value) : "Set date";
   };
