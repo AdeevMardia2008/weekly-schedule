@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schedule — Adeev</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #1b1b1f; --panel: #26262b; --panel-2: #2e2e34; --hover:#313139;
+    --line: #38383f; --grid-line:#2c2c32; --text: #e8e8ea; --muted: #9a9aa2; --faint:#6f6f77;
+    --accent: #7c8cff; --danger:#ff6b6b;
+    --half-height: 30px; --start-hour: 5; --end-hour: 23; --time-col: 64px;
+    --fitness:#c8933a; --learning:#3a93b5; --work:#3f9d5a; --personal:#c85566; --admin:#8a6bc4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+  .topbar h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .spacer { flex: 1; }
+  #status { font-size: 11.5px; color: var(--faint); display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #7bd88f; }
+  .dot.saving { background: #ffce54; } .dot.offline { background: var(--danger); }
+  .btn { display: inline-flex; align-items: center; gap: 7px; background: var(--panel); border: 1px solid var(--line); color: var(--text); padding: 8px 14px; border-radius: 9px; font-size: 13px; font-weight: 500; cursor: pointer; text-decoration: none; transition: background 0.12s, border-color 0.12s; }
+  .btn:hover { background: var(--panel-2); border-color: var(--accent); }
+  .btn .material-icons-outlined { font-size: 18px; }
+  .btn.icon-only { padding: 8px; }
+  .legend { display: flex; gap: 14px; padding: 10px 24px; border-bottom: 1px solid var(--line); flex-shrink: 0; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+  .legend-item .sw { width: 11px; height: 11px; border-radius: 3px; }
+  .body-row { flex: 1; display: flex; min-height: 0; }
+  .cal-area { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .day-head-row { display: grid; grid-template-columns: var(--time-col) repeat(7, 1fr); border-bottom: 1px solid var(--line); flex-shrink: 0; }
+  .day-head { text-align: center; padding: 13px 4px; font-weight: 600; font-size: 13px; color: var(--muted); }
+  .day-head.today { color: var(--accent); }
+  .cal-scroll { flex: 1; overflow-y: auto; }
+  .cal-scroll::-webkit-scrollbar { width: 9px; } .cal-scroll::-webkit-scrollbar-thumb { background: #3c3c44; border-radius: 5px; }
+  .grid-body { display: grid; grid-template-columns: var(--time-col) repeat(7, 1fr); }
+  .time-gutter { position: relative; }
+  .time-label { height: var(--half-height); text-align: right; padding-right: 8px; font-size: 10.5px; color: var(--faint); transform: translateY(-6px); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .time-label.half { opacity: 0.5; font-size: 9.5px; }
+  .day-col { position: relative; border-left: 1px solid var(--grid-line); }
+  .half-line { height: var(--half-height); box-sizing: border-box; border-bottom: 1px solid #232328; cursor: pointer; }
+  .half-line.hour { border-bottom: 1px solid var(--grid-line); }
+  .half-line:hover { background: #212127; }
+  .event { position: absolute; left: 3px; right: 3px; border-radius: 6px; padding: 4px 7px; font-size: 11px; line-height: 1.2; overflow: hidden; border-left: 3px solid; cursor: pointer; transition: filter 0.12s, transform 0.12s; z-index: 2; }
+  .event:hover { filter: brightness(1.12); z-index: 20; overflow: visible; }
+  .event.selected { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .event .title { font-weight: 600; }
+  .event .time { font-size: 0.86em; opacity: 0.8; margin-top: 1px; }
+  .event .note-ind { position: absolute; top: 3px; right: 4px; }
+  .event .note-ind .material-icons-outlined { font-size: 12px; opacity: 0.7; }
+  .fitness  { background: rgba(200,147,58,0.20);  border-left-color: var(--fitness);  color: #e8c78a; }
+  .learning { background: rgba(58,147,181,0.20);  border-left-color: var(--learning); color: #9ed4e8; }
+  .work     { background: rgba(63,157,90,0.20);   border-left-color: var(--work);     color: #a5e0b5; }
+  .personal { background: rgba(200,85,102,0.20);  border-left-color: var(--personal); color: #eaa9b2; }
+  .admin    { background: rgba(138,107,196,0.20); border-left-color: var(--admin);    color: #cdb9ec; }
+  .detail { width: 0; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--line); overflow: hidden; transition: width 0.2s ease; }
+  .detail.open { width: 340px; }
+  .detail-inner { width: 340px; padding: 20px; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
+  .detail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .detail-head h2 { font-size: 16px; font-weight: 600; }
+  .close-x { background: none; border: none; color: var(--muted); cursor: pointer; display: flex; }
+  .close-x:hover { color: var(--text); }
+  .field { margin-bottom: 15px; }
+  .field label { display: block; font-size: 11.5px; font-weight: 600; color: var(--muted); margin-bottom: 6px; letter-spacing: 0.01em; }
+  .field input, .field select, .field textarea { width: 100%; padding: 10px 11px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; font-size: 13.5px; font-family: inherit; color: var(--text); transition: border-color 0.12s; }
+  .field textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+  .note-hint { font-size: 11px; color: var(--faint); margin-top: 6px; display:flex; align-items:center; gap:5px; }
+  .note-hint .material-icons-outlined { font-size: 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  .panel-actions { display: flex; gap: 10px; margin-top: 8px; }
+  .panel-actions .btn2 { flex: 1; justify-content: center; display: inline-flex; align-items: center; gap: 6px; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; }
+  .btn-save { background: var(--accent); color: #fff; }
+  .btn-save:hover { filter: brightness(1.08); }
+  .btn-del { background: rgba(255,107,107,0.12); color: var(--danger); }
+  .btn-del:hover { background: rgba(255,107,107,0.2); }
+  .btn2 .material-icons-outlined { font-size: 17px; }
+  @media (max-width: 720px) {
+    .detail.open { width: 100%; position: fixed; right: 0; top: 0; bottom: 0; z-index: 60; }
+    .detail-inner { width: 100%; }
+    :root { --time-col: 46px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <h1>Weekly Schedule</h1>
+    <span class="spacer"></span>
+    <span id="status"><span class="dot" id="dot"></span><span id="statusText">…</span></span>
+    <button class="btn" id="addBtn"><span class="material-icons-outlined">add</span> Add event</button>
+    <button class="btn icon-only" id="resetBtn" title="Reset to default"><span class="material-icons-outlined">restart_alt</span></button>
+    <a class="btn" href="todo.html"><span class="material-icons-outlined">checklist</span> Tasks</a>
+    <a class="btn icon-only" href="index.html" title="Home"><span class="material-icons-outlined">home</span></a>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="sw" style="background:var(--fitness)"></span>Fitness</div>
+    <div class="legend-item"><span class="sw" style="background:var(--learning)"></span>Learning</div>
+    <div class="legend-item"><span class="sw" style="background:var(--work)"></span>Work</div>
+    <div class="legend-item"><span class="sw" style="background:var(--personal)"></span>Personal</div>
+    <div class="legend-item"><span class="sw" style="background:var(--admin)"></span>Admin</div>
+  </div>
+  <div class="body-row">
+    <div class="cal-area">
+      <div class="day-head-row" id="dayHeadRow"></div>
+      <div class="cal-scroll"><div class="grid-body" id="gridBody"></div></div>
+    </div>
+    <div class="detail" id="detail">
+      <div class="detail-inner">
+        <div class="detail-head">
+          <h2 id="panelTitle">Edit event</h2>
+          <button class="close-x" id="pClose"><span class="material-icons-outlined">close</span></button>
+        </div>
+        <input type="hidden" id="editIndex"><input type="hidden" id="editDay">
+        <div class="field"><label>Event name</label><input type="text" id="fName" placeholder="e.g. Gym"></div>
+        <div class="field"><label>Day</label>
+          <select id="fDay"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option></select>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Start</label><input type="time" id="fStart" step="900" value="09:00"></div>
+          <div class="field"><label>End</label><input type="time" id="fEnd" step="900" value="10:00"></div>
+        </div>
+        <div class="field"><label>Category</label>
+          <select id="fCat"><option value="fitness">Fitness</option><option value="learning">Learning</option><option value="work">Work</option><option value="personal">Personal</option><option value="admin">Admin</option></select>
+        </div>
+        <div class="field">
+          <label>Notes</label>
+          <textarea id="fNote" placeholder="Notes for this activity…"></textarea>
+          <div class="note-hint"><span class="material-icons-outlined">sync</span>Shared across every event with the same name.</div>
+        </div>
+        <div class="panel-actions">
+          <button class="btn2 btn-del" id="pDelete"><span class="material-icons-outlined">delete_outline</span> Delete</button>
+          <button class="btn2 btn-save" id="pSave"><span class="material-icons-outlined">check</span> Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const SUPABASE_URL = "https://dpeqofrtsecvnnverrrd.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_HcFlABnlNvEYxkk6ybxreg_b8pmUMvT";
+  const ROW_ID = "main";
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const START_HOUR = 5, END_HOUR = 23, HALF_PX = 30;
+  const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const STORAGE_KEY = "adeev_schedule_v3";
+  const DEFAULT_SCHEDULE = {
+    Monday: [
+      { name: "Stretches + Meditation + Running", start: 6.0, dur: 1.5, cat: "fitness" },
+      { name: "Golf", start: 9.0, dur: 2.0, cat: "work" },
+      { name: "GitHub Open Source", start: 12.5, dur: 0.5, cat: "work" },
+      { name: "Play Guitar", start: 13.0, dur: 0.5, cat: "learning" },
+      { name: "Build Portfolio Website", start: 14.5, dur: 1.0, cat: "work" },
+      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
+      { name: "Learn Spanish", start: 19.0, dur: 1.0, cat: "learning" },
+      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
+      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
+      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
+      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
+    ],
+    Tuesday: [
+      { name: "Surfing", start: 5.25, dur: 6.75, cat: "fitness" },
+      { name: "Socialising", start: 12.0, dur: 0.5, cat: "personal" },
+      { name: "Finance Learning", start: 13.5, dur: 1.0, cat: "learning" },
+      { name: "Socialising", start: 14.5, dur: 0.5, cat: "personal" },
+      { name: "Write Research Paper", start: 15.25, dur: 1.75, cat: "work" },
+      { name: "Build Portfolio Website", start: 17.5, dur: 1.0, cat: "work" },
+      { name: "Fix LinkedIn/GitHub Accounts", start: 19.0, dur: 1.0, cat: "admin" },
+      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
+      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
+      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
+      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
+    ],
+    Wednesday: [
+      { name: "Stretches + Meditation + Running", start: 6.0, dur: 1.5, cat: "fitness" },
+      { name: "Golf", start: 9.0, dur: 2.0, cat: "work" },
+      { name: "GitHub Open Source", start: 12.5, dur: 0.5, cat: "work" },
+      { name: "Play Guitar", start: 13.0, dur: 0.5, cat: "learning" },
+      { name: "Claude Course", start: 14.5, dur: 1.0, cat: "learning" },
+      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
+      { name: "Learn Spanish", start: 19.0, dur: 1.0, cat: "learning" },
+      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
+      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
+      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
+      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
+    ],
+    Thursday: [
+      { name: "Surfing", start: 5.25, dur: 6.75, cat: "fitness" },
+      { name: "Socialising", start: 12.0, dur: 0.5, cat: "personal" },
+      { name: "Finance Learning", start: 13.5, dur: 1.0, cat: "learning" },
+      { name: "Write Research Paper", start: 15.25, dur: 1.75, cat: "work" },
+      { name: "Explore Claude & Skills", start: 17.5, dur: 0.75, cat: "work" },
+      { name: "Socialising", start: 18.5, dur: 0.5, cat: "personal" },
+      { name: "Fix LinkedIn/GitHub Accounts", start: 19.0, dur: 1.0, cat: "admin" },
+      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
+      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
+      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
+      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
+    ],
+    Friday: [
+      { name: "Stretches + Meditation + Running", start: 6.0, dur: 1.5, cat: "fitness" },
+      { name: "Golf", start: 9.0, dur: 2.0, cat: "work" },
+      { name: "UCSD Onboarding + Packing", start: 12.5, dur: 1.0, cat: "admin" },
+      { name: "Explore Money Making Options", start: 14.5, dur: 1.0, cat: "work" },
+      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
+      { name: "Learn Spanish", start: 19.0, dur: 1.0, cat: "learning" },
+      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
+      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
+      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
+      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
+    ],
+    Saturday: [
+      { name: "Stretches + Meditation + Running + Swimming", start: 6.0, dur: 2.0, cat: "fitness" },
+      { name: "Learn Spanish", start: 9.5, dur: 1.5, cat: "learning" },
+      { name: "Write Research Paper", start: 12.0, dur: 1.5, cat: "work" },
+      { name: "Fix LinkedIn/GitHub Accounts", start: 14.5, dur: 1.0, cat: "admin" },
+      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
+      { name: "UCSD Onboarding + Packing", start: 19.0, dur: 1.0, cat: "admin" },
+      { name: "Build Portfolio Website", start: 21.0, dur: 0.5, cat: "work" },
+      { name: "Reading", start: 21.5, dur: 0.25, cat: "learning" },
+      { name: "Spotify Podcast", start: 21.75, dur: 0.25, cat: "learning" },
+      { name: "Stretching / Light Yoga", start: 22.0, dur: 0.5, cat: "fitness" },
+    ],
+    Sunday: [
+      { name: "Search San Diego Activities", start: 9.0, dur: 1.0, cat: "personal" },
+      { name: "Learn Spanish", start: 10.5, dur: 1.5, cat: "learning" },
+      { name: "Search Clothing Brands + Gear", start: 12.5, dur: 1.0, cat: "personal" },
+      { name: "Format Instagram Reels", start: 14.5, dur: 0.75, cat: "personal" },
+      { name: "Delete Files/Photos", start: 16.0, dur: 1.0, cat: "admin" },
+      { name: "Build Portfolio Website", start: 17.5, dur: 1.5, cat: "work" },
+      { name: "Explore Money Making Options", start: 19.5, dur: 0.5, cat: "work" },
+      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
+      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
+      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
+      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
+    ],
+  };
+  let state = { schedule: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)), notes: {} };
+  let selected = null;
+  function setStatus(kind, text) {
+    document.getElementById("dot").className = "dot" + (kind === "saving" ? " saving" : kind === "offline" ? " offline" : "");
+    document.getElementById("statusText").textContent = text;
+  }
+  async function loadState() {
+    try { const local = localStorage.getItem(STORAGE_KEY); if (local) state = JSON.parse(local); } catch(e) {}
+    render();
+    try {
+      const { data, error } = await sb.from("schedule_store").select("data").eq("id", ROW_ID).single();
+      if (error) throw error;
+      if (data && data.data && data.data.schedule) { state = data.data; localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); render(); setStatus("ok","Synced"); }
+      else { await pushState(); setStatus("ok","Synced"); }
+    } catch(e) { setStatus("offline","Offline"); }
+  }
+  async function pushState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+    setStatus("saving","Saving");
+    try { const { error } = await sb.from("schedule_store").upsert({ id: ROW_ID, data: state, updated_at: new Date().toISOString() }); if (error) throw error; setStatus("ok","Synced"); }
+    catch(e){ setStatus("offline","Offline"); }
+  }
+  function fmt(h){ const hh=Math.floor(h), mm=Math.round((h-hh)*60), ap=hh>=12?"PM":"AM"; let d=hh%12; if(d===0)d=12; return `${d}:${mm.toString().padStart(2,"0")} ${ap}`; }
+  function hoursToHHMM(h){ const hh=Math.floor(h), mm=Math.round((h-hh)*60); return `${hh.toString().padStart(2,"0")}:${mm.toString().padStart(2,"0")}`; }
+  function hhmmToHours(s){ const [h,m]=s.split(":").map(Number); return h+m/60; }
+  function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+  const todayName = DAYS[(new Date().getDay()+6)%7];
+  function render() {
+    const sched = state.schedule, notes = state.notes || {};
+    const headRow = document.getElementById("dayHeadRow");
+    headRow.innerHTML = '<div class="corner"></div>';
+    DAYS.forEach(day => { const d=document.createElement("div"); d.className="day-head"+(day===todayName?" today":""); d.textContent=day; headRow.appendChild(d); });
+    const body = document.getElementById("gridBody"); body.innerHTML = "";
+    const halfSlots = (END_HOUR - START_HOUR) * 2;
+    const gutter = document.createElement("div"); gutter.className = "time-gutter";
+    for (let i=0;i<halfSlots;i++){ const tm=(START_HOUR*60)+i*30; const lbl=document.createElement("div"); lbl.className="time-label"+((tm%60)!==0?" half":""); lbl.textContent=fmt(tm/60); gutter.appendChild(lbl); }
+    body.appendChild(gutter);
+    DAYS.forEach(day => {
+      const col = document.createElement("div"); col.className = "day-col";
+      for (let i=0;i<halfSlots;i++){ const tm=(START_HOUR*60)+i*30; const line=document.createElement("div"); line.className="half-line"+((tm%60===0)?" hour":""); const sh=tm/60; line.onclick=()=>openAdd(day,sh); col.appendChild(line); }
+      (sched[day]||[]).forEach((ev, idx) => {
+        const el = document.createElement("div");
+        const isSel = selected && selected!=="new" && selected.day===day && selected.idx===idx;
+        el.className = `event ${ev.cat}` + (isSel ? " selected" : "");
+        el.style.top = ((ev.start-START_HOUR)*2*HALF_PX)+"px";
+        el.style.height = Math.max(ev.dur*2*HALF_PX-3, 15)+"px";
+        const hasNote = notes[ev.name] && notes[ev.name].trim();
+        el.innerHTML = `${hasNote?'<span class="note-ind"><span class="material-icons-outlined">notes</span></span>':''}<div class="title">${escapeHtml(ev.name)}</div><div class="time">${fmt(ev.start)} – ${fmt(ev.start+ev.dur)}</div>`;
+        if (hasNote) el.title = notes[ev.name];
+        el.onclick = (e) => { e.stopPropagation(); openEdit(day, idx); };
+        col.appendChild(el);
+      });
+      body.appendChild(col);
+    });
+  }
+  const detail = document.getElementById("detail");
+  function openAdd(day, startHour) {
+    selected = "new";
+    document.getElementById("panelTitle").textContent = "Add event";
+    document.getElementById("editIndex").value = ""; document.getElementById("editDay").value = "";
+    document.getElementById("fName").value = "";
+    document.getElementById("fDay").value = day || "Monday";
+    const s = startHour!=null?startHour:9;
+    document.getElementById("fStart").value = hoursToHHMM(s);
+    document.getElementById("fEnd").value = hoursToHHMM(s+1);
+    document.getElementById("fCat").value = "work";
+    document.getElementById("fNote").value = "";
+    document.getElementById("pDelete").style.display = "none";
+    detail.classList.add("open"); render();
+    document.getElementById("fName").focus();
+  }
+  function openEdit(day, idx) {
+    selected = { day, idx };
+    const ev = state.schedule[day][idx];
+    document.getElementById("panelTitle").textContent = "Edit event";
+    document.getElementById("editIndex").value = idx; document.getElementById("editDay").value = day;
+    document.getElementById("fName").value = ev.name;
+    document.getElementById("fDay").value = day;
+    document.getElementById("fStart").value = hoursToHHMM(ev.start);
+    document.getElementById("fEnd").value = hoursToHHMM(ev.start+ev.dur);
+    document.getElementById("fCat").value = ev.cat;
+    document.getElementById("fNote").value = (state.notes && state.notes[ev.name]) || "";
+    document.getElementById("pDelete").style.display = "inline-flex";
+    detail.classList.add("open"); render();
+  }
+  function closeDetail(){ selected = null; detail.classList.remove("open"); render(); }
+  function saveEvent() {
+    const name = document.getElementById("fName").value.trim();
+    const day = document.getElementById("fDay").value;
+    const start = hhmmToHours(document.getElementById("fStart").value);
+    const end = hhmmToHours(document.getElementById("fEnd").value);
+    const cat = document.getElementById("fCat").value;
+    const note = document.getElementById("fNote").value.trim();
+    if (!name) { alert("Please enter an event name."); return; }
+    if (end <= start) { alert("End time must be after start time."); return; }
+    const newEv = { name, start, dur: end-start, cat };
+    const editIdx = document.getElementById("editIndex").value;
+    const editDay = document.getElementById("editDay").value;
+    if (editIdx !== "") state.schedule[editDay].splice(parseInt(editIdx), 1);
+    state.schedule[day].push(newEv);
+    state.schedule[day].sort((a,b)=>a.start-b.start);
+    if (!state.notes) state.notes = {};
+    if (note) state.notes[name] = note; else delete state.notes[name];
+    pushState(); closeDetail();
+  }
+  function deleteEvent() {
+    const editIdx = document.getElementById("editIndex").value;
+    const editDay = document.getElementById("editDay").value;
+    if (editIdx === "") return;
+    if (confirm("Delete this event?")) { state.schedule[editDay].splice(parseInt(editIdx),1); pushState(); closeDetail(); }
+  }
+  function resetSchedule(){ if (confirm("Reset the whole calendar to the original schedule? This erases your edits and notes.")) { state = { schedule: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)), notes: {} }; pushState(); closeDetail(); } }
+  document.getElementById("pClose").onclick = closeDetail;
+  document.getElementById("pSave").onclick = saveEvent;
+  document.getElementById("pDelete").onclick = deleteEvent;
+  document.getElementById("addBtn").onclick = () => openAdd("Monday", 9);
+  document.getElementById("resetBtn").onclick = resetSchedule;
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeDetail(); });
+  loadState();
+</script>
+</body>
+</html>
