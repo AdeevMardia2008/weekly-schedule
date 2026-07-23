@@ -67,10 +67,10 @@
   .addbar input[type=text] { flex: 1; background: none; border: none; color: var(--text); font-size: 14.5px; font-family: inherit; padding: 9px 0; }
   .addbar input[type=text]:focus { outline: none; }
   .addbar input[type=text]::placeholder { color: var(--faint); }
-  .date-pick { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; padding: 6px 10px; border-radius: 8px; cursor: pointer; position: relative; border: none; font-family: inherit; background: transparent; }
+  .date-pick { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: 12.5px; padding: 6px 10px; border-radius: 8px; cursor: pointer; border: none; font-family: inherit; background: transparent; }
   .date-pick:hover { background: var(--panel-2); color: var(--text); }
+  .date-pick.set { color: var(--accent); }
   .date-pick .material-icons-outlined { font-size: 16px; }
-  .date-pick input[type=date] { position: absolute; left: 10px; bottom: 2px; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
   .add-go { background: var(--accent); border: none; color: #fff; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .add-go:hover { filter: brightness(1.08); }
   .add-go .material-icons-outlined { font-size: 20px; }
@@ -90,10 +90,11 @@
   .drow { display: flex; align-items: center; gap: 11px; padding: 12px 8px; border-top: 1px solid var(--line); cursor: pointer; font-size: 13.5px; color: var(--text); }
   .drow:hover { background: var(--panel-2); }
   .drow .material-icons-outlined { font-size: 19px; color: var(--muted); }
-  .drow.active .material-icons-outlined { color: var(--accent); }
   .drow.star.on .material-icons-outlined { color: var(--star); }
   .drow .rlabel { flex: 1; }
-  .drow input[type=date] { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); border-radius: 7px; padding: 5px 8px; font-family: inherit; font-size: 12.5px; }
+  .drow .rval { color: var(--muted); font-size: 12.5px; }
+  .drow .rval.set { color: var(--accent); }
+  .drow .rval.overdue { color: var(--danger); }
   .note-area { margin-top: 14px; flex: 1; display: flex; flex-direction: column; }
   .note-area label { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 7px; }
   .note-area textarea { flex: 1; min-height: 120px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; color: var(--text); padding: 11px; font-family: inherit; font-size: 13.5px; resize: none; line-height: 1.5; }
@@ -105,6 +106,22 @@
   #status { font-size: 11.5px; color: var(--faint); display: inline-flex; align-items: center; gap: 5px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: #7bd88f; }
   .dot.saving { background: var(--star); } .dot.offline { background: var(--danger); }
+  .cal-pop { position: fixed; z-index: 200; display: none; width: 268px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; box-shadow: 0 16px 44px rgba(0,0,0,0.45); }
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .cal-month { font-size: 14px; font-weight: 600; }
+  .cal-nav { background: none; border: none; color: var(--muted); cursor: pointer; display: flex; padding: 4px; border-radius: 6px; }
+  .cal-nav:hover { background: var(--hover); color: var(--text); }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-wd { text-align: center; font-size: 10.5px; color: var(--faint); padding: 4px 0; font-weight: 600; }
+  .cal-day { text-align: center; font-size: 12.5px; padding: 7px 0; border-radius: 7px; cursor: pointer; color: var(--text); }
+  .cal-day:hover { background: var(--hover); }
+  .cal-day.empty { visibility: hidden; cursor: default; }
+  .cal-day.today { outline: 1px solid var(--accent); color: var(--accent); font-weight: 600; }
+  .cal-day.selected { background: var(--accent); color: #fff; }
+  .cal-foot { display: flex; justify-content: space-between; margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .cal-foot button { background: none; border: none; color: var(--muted); font-size: 12px; font-family: inherit; cursor: pointer; padding: 5px 9px; border-radius: 6px; }
+  .cal-foot button:hover { background: var(--hover); color: var(--text); }
+  .cal-foot .cal-today { color: var(--accent); }
   @media (max-width: 720px) {
     .detail.open { width: 100%; position: fixed; right: 0; top: 0; bottom: 0; z-index: 50; }
     .detail-inner { width: 100%; }
@@ -129,10 +146,9 @@
         <div class="addbar-inner">
           <span class="material-icons-outlined lead">add</span>
           <input type="text" id="newTitle" placeholder="Add a task" autocomplete="off">
-          <button type="button" class="date-pick" id="datePickLabel">
+          <button type="button" class="date-pick" id="datePickBtn">
             <span class="material-icons-outlined">event</span>
             <span id="datePickText">Set date</span>
-            <input type="date" id="newDate" tabindex="-1" aria-hidden="true">
           </button>
           <button class="add-go" id="addGo" title="Add"><span class="material-icons-outlined">arrow_upward</span></button>
         </div>
@@ -153,10 +169,10 @@
           <span class="material-icons-outlined">check_circle</span>
           <span class="rlabel" id="dCompleteLabel">Mark as completed</span>
         </div>
-        <div class="drow">
+        <div class="drow" id="dDateRow">
           <span class="material-icons-outlined">event</span>
           <span class="rlabel">Due date</span>
-          <input type="date" id="dDate">
+          <span class="rval" id="dDateVal">None</span>
         </div>
         <div class="note-area">
           <label>Notes</label>
@@ -169,6 +185,7 @@
     </div>
   </div>
 </div>
+<div class="cal-pop" id="calPop"></div>
 <script>
   const SUPABASE_URL = "https://dpeqofrtsecvnnverrrd.supabase.co";
   const SUPABASE_KEY = "sb_publishable_HcFlABnlNvEYxkk6ybxreg_b8pmUMvT";
@@ -176,6 +193,7 @@
   let todos = [];
   let filter = "all";
   let selectedId = null;
+  let newDateVal = null;
   const FILTERS = [
     { key: "all", label: "All", icon: "list" },
     { key: "overdue", label: "Overdue", icon: "event_busy" },
@@ -187,23 +205,23 @@
     { key: "completed", label: "Completed", icon: "check_circle" },
   ];
   function setStatus(kind, text) {
-    const dot = document.getElementById("dot");
-    dot.className = "dot" + (kind === "saving" ? " saving" : kind === "offline" ? " offline" : "");
+    document.getElementById("dot").className = "dot" + (kind === "saving" ? " saving" : kind === "offline" ? " offline" : "");
     document.getElementById("statusText").textContent = text;
   }
-  function today0() { const d = new Date(); d.setHours(0,0,0,0); return d; }
-  function parseDate(s) { if (!s) return null; const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
-  function dayDiff(dateStr) { const d = parseDate(dateStr); if (!d) return null; return Math.round((d - today0()) / 86400000); }
-  function fmtDate(s) {
-    const d = parseDate(s); if (!d) return "";
+  function ymd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+  function todayStr(){ return ymd(new Date()); }
+  function parseYmd(s){ if(!s) return null; const [y,m,d]=s.split("-").map(Number); return new Date(y, m-1, d); }
+  function dayDiff(s){ if(!s) return null; const a=parseYmd(s); const t=new Date(); t.setHours(0,0,0,0); a.setHours(0,0,0,0); return Math.round((a - t)/86400000); }
+  function fmtDate(s){
+    if(!s) return "";
     const diff = dayDiff(s);
     if (diff === 0) return "Today";
     if (diff === 1) return "Tomorrow";
     if (diff === -1) return "Yesterday";
-    return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+    return parseYmd(s).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
   }
-  function bucketOf(t) {
-    if (!t.due_date) return "later";
+  function bucketOf(t){
+    if(!t.due_date) return "later";
     const diff = dayDiff(t.due_date);
     if (diff < 0) return "overdue";
     if (diff === 0) return "today";
@@ -211,6 +229,62 @@
     if (diff <= 7) return "week";
     return "later";
   }
+  const calPop = document.getElementById("calPop");
+  let calMonth = null, calSelected = null, calOnPick = null, calAnchor = null;
+  function openCalendar(anchor, currentVal, onPick){
+    calOnPick = onPick; calSelected = currentVal || null; calAnchor = anchor;
+    const base = currentVal ? parseYmd(currentVal) : new Date();
+    calMonth = new Date(base.getFullYear(), base.getMonth(), 1);
+    renderCal();
+    calPop.style.display = "block";
+    positionCal();
+  }
+  function closeCalendar(){ calPop.style.display = "none"; calOnPick = null; }
+  function positionCal(){
+    const r = calAnchor.getBoundingClientRect();
+    const w = calPop.offsetWidth, h = calPop.offsetHeight;
+    let top = r.top - h - 8;
+    if (top < 8) top = r.bottom + 8;
+    let left = r.left;
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    if (left < 8) left = 8;
+    calPop.style.top = top + "px";
+    calPop.style.left = left + "px";
+  }
+  function renderCal(){
+    const year = calMonth.getFullYear(), month = calMonth.getMonth();
+    const monthName = calMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const tStr = todayStr();
+    const wd = ["M","T","W","T","F","S","S"];
+    let head = wd.map(w => `<div class="cal-wd">${w}</div>`).join("");
+    let cells = "";
+    for (let i=0;i<startOffset;i++) cells += `<div class="cal-day empty"></div>`;
+    for (let d=1; d<=daysInMonth; d++){
+      const ds = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      const cls = "cal-day" + (ds===tStr?" today":"") + (ds===calSelected?" selected":"");
+      cells += `<div class="${cls}" data-d="${ds}">${d}</div>`;
+    }
+    calPop.innerHTML = `
+      <div class="cal-head">
+        <button class="cal-nav" data-nav="-1"><span class="material-icons-outlined">chevron_left</span></button>
+        <div class="cal-month">${monthName}</div>
+        <button class="cal-nav" data-nav="1"><span class="material-icons-outlined">chevron_right</span></button>
+      </div>
+      <div class="cal-grid">${head}</div>
+      <div class="cal-grid" style="margin-top:2px">${cells}</div>
+      <div class="cal-foot"><button class="cal-clear">Clear</button><button class="cal-today">Today</button></div>
+    `;
+    calPop.querySelectorAll(".cal-nav").forEach(b => b.onclick = () => { calMonth = new Date(year, month + Number(b.dataset.nav), 1); renderCal(); });
+    calPop.querySelectorAll(".cal-day[data-d]").forEach(c => c.onclick = () => { if (calOnPick) calOnPick(c.dataset.d); closeCalendar(); });
+    calPop.querySelector(".cal-clear").onclick = () => { if (calOnPick) calOnPick(null); closeCalendar(); };
+    calPop.querySelector(".cal-today").onclick = () => { if (calOnPick) calOnPick(todayStr()); closeCalendar(); };
+  }
+  document.addEventListener("click", (e) => {
+    if (calPop.style.display === "block" && !calPop.contains(e.target) && !e.target.closest(".date-pick") && !e.target.closest("#dDateRow")) closeCalendar();
+  });
+  window.addEventListener("resize", () => { if (calPop.style.display === "block") positionCal(); });
   async function load() {
     setStatus("saving", "Loading");
     try {
@@ -222,8 +296,7 @@
     renderFilters(); render();
   }
   function renderFilters() {
-    const el = document.getElementById("filters");
-    el.innerHTML = "";
+    const el = document.getElementById("filters"); el.innerHTML = "";
     FILTERS.forEach(f => {
       const c = document.createElement("div");
       c.className = "chip" + (filter === f.key ? " active" : "");
@@ -242,19 +315,12 @@
   const GROUP_ORDER = ["overdue","today","tomorrow","week","later","none"];
   const GROUP_LABEL = { overdue:"Overdue", today:"Today", tomorrow:"Tomorrow", week:"This Week", later:"Later", none:"No date" };
   function render() {
-    const scroll = document.getElementById("scroll");
-    scroll.innerHTML = "";
+    const scroll = document.getElementById("scroll"); scroll.innerHTML = "";
     let visible = todos.filter(matchesFilter);
     document.getElementById("count").textContent = visible.length ? `${visible.length} task${visible.length>1?"s":""}` : "";
-    if (!visible.length) {
-      scroll.innerHTML = `<div class="empty"><span class="material-icons-outlined">task_alt</span>Nothing here. Add a task below.</div>`;
-      return;
-    }
+    if (!visible.length) { scroll.innerHTML = `<div class="empty"><span class="material-icons-outlined">task_alt</span>Nothing here. Add a task below.</div>`; return; }
     const groups = {};
-    visible.forEach(t => {
-      const b = t.completed ? "none" : (t.due_date ? bucketOf(t) : "none");
-      (groups[b] = groups[b] || []).push(t);
-    });
+    visible.forEach(t => { const b = t.completed ? "none" : (t.due_date ? bucketOf(t) : "none"); (groups[b] = groups[b] || []).push(t); });
     const showGroups = (filter === "all" || filter === "important");
     if (showGroups) {
       GROUP_ORDER.forEach(g => {
@@ -265,9 +331,7 @@
         scroll.appendChild(lbl);
         groups[g].forEach(t => scroll.appendChild(taskEl(t)));
       });
-    } else {
-      visible.forEach(t => scroll.appendChild(taskEl(t)));
-    }
+    } else { visible.forEach(t => scroll.appendChild(taskEl(t))); }
   }
   function taskEl(t) {
     const el = document.createElement("div");
@@ -293,47 +357,30 @@
     Object.assign(t, patch);
     render(); if (t.id === selectedId) syncDetail();
     setStatus("saving", "Saving");
-    try {
-      const { error } = await sb.from("todos").update(patch).eq("id", t.id);
-      if (error) throw error;
-      setStatus("ok", "Synced");
-    } catch(e) { setStatus("offline", "Offline"); }
+    try { const { error } = await sb.from("todos").update(patch).eq("id", t.id); if (error) throw error; setStatus("ok", "Synced"); }
+    catch(e) { setStatus("offline", "Offline"); }
   }
   function toggleComplete(t){ persist(t, { completed: !t.completed }); }
   function toggleImportant(t){ persist(t, { important: !t.important }); }
   async function addTask() {
     const input = document.getElementById("newTitle");
-    const title = input.value.trim();
-    if (!title) return;
-    const due = document.getElementById("newDate").value || null;
-    const row = { title, due_date: due, important: false, completed: false, note: "", sort_order: Date.now() };
-    input.value = ""; resetDatePick();
+    const title = input.value.trim(); if (!title) return;
+    const row = { title, due_date: newDateVal || null, important: false, completed: false, note: "", sort_order: Date.now() };
+    input.value = ""; newDateVal = null; updateDatePickText();
     setStatus("saving", "Saving");
-    try {
-      const { data, error } = await sb.from("todos").insert(row).select().single();
-      if (error) throw error;
-      todos.push(data); setStatus("ok", "Synced");
-    } catch(e) { todos.push({ ...row, id: "local-"+Date.now() }); setStatus("offline", "Offline"); }
+    try { const { data, error } = await sb.from("todos").insert(row).select().single(); if (error) throw error; todos.push(data); setStatus("ok", "Synced"); }
+    catch(e) { todos.push({ ...row, id: "local-"+Date.now() }); setStatus("offline", "Offline"); }
     render();
   }
   async function deleteTask(id) {
     todos = todos.filter(t => t.id !== id);
     if (selectedId === id) closeDetail();
-    render();
-    setStatus("saving", "Saving");
+    render(); setStatus("saving", "Saving");
     try { const { error } = await sb.from("todos").delete().eq("id", id); if (error) throw error; setStatus("ok","Synced"); }
     catch(e){ setStatus("offline","Offline"); }
   }
-  function openDetail(id) {
-    selectedId = id;
-    document.getElementById("detail").classList.add("open");
-    render(); syncDetail();
-  }
-  function closeDetail() {
-    selectedId = null;
-    document.getElementById("detail").classList.remove("open");
-    render();
-  }
+  function openDetail(id) { selectedId = id; document.getElementById("detail").classList.add("open"); render(); syncDetail(); }
+  function closeDetail() { selectedId = null; document.getElementById("detail").classList.remove("open"); render(); }
   function syncDetail() {
     const t = todos.find(x => x.id === selectedId); if (!t) return;
     const dTitle = document.getElementById("dTitle");
@@ -344,31 +391,34 @@
     star.querySelector(".material-icons-outlined").textContent = t.important ? "star" : "star_border";
     star.querySelector(".rlabel").textContent = t.important ? "Important" : "Mark as important";
     document.getElementById("dCompleteLabel").textContent = t.completed ? "Completed" : "Mark as completed";
-    document.getElementById("dDate").value = t.due_date || "";
+    const dv = document.getElementById("dDateVal");
+    const overdue = t.due_date && !t.completed && dayDiff(t.due_date) < 0;
+    dv.textContent = t.due_date ? fmtDate(t.due_date) : "None";
+    dv.className = "rval" + (t.due_date ? " set" : "") + (overdue ? " overdue" : "");
     document.getElementById("dNote").value = t.note || "";
   }
+  function cur(){ return todos.find(x => x.id === selectedId); }
   document.getElementById("dClose").onclick = closeDetail;
   document.getElementById("dCheck").onclick = () => { const t = cur(); if (t) toggleComplete(t); };
   document.getElementById("dCompleteRow").onclick = () => { const t = cur(); if (t) toggleComplete(t); };
   document.getElementById("dStar").onclick = () => { const t = cur(); if (t) toggleImportant(t); };
   document.getElementById("dDelete").onclick = () => { if (selectedId && confirm("Delete this task?")) deleteTask(selectedId); };
-  document.getElementById("dDate").onchange = (e) => { const t = cur(); if (t) persist(t, { due_date: e.target.value || null }); };
+  document.getElementById("dDateRow").onclick = (e) => {
+    const t = cur(); if (!t) return;
+    openCalendar(document.getElementById("dDateVal"), t.due_date, (v) => persist(t, { due_date: v || null }));
+  };
   document.getElementById("dTitle").onblur = (e) => { const t = cur(); const v = e.target.value.trim(); if (t && v && v !== t.title) persist(t, { title: v }); };
   document.getElementById("dTitle").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } };
   document.getElementById("dNote").onblur = (e) => { const t = cur(); if (t && e.target.value !== t.note) persist(t, { note: e.target.value }); };
-  function cur(){ return todos.find(x => x.id === selectedId); }
-  const newDate = document.getElementById("newDate");
-  document.getElementById("datePickLabel").addEventListener("click", (e) => {
-    e.preventDefault();
-    try {
-      if (typeof newDate.showPicker === "function") newDate.showPicker();
-      else { newDate.focus(); newDate.click(); }
-    } catch (err) { newDate.focus(); }
-  });
-  newDate.onchange = () => {
-    document.getElementById("datePickText").textContent = newDate.value ? fmtDate(newDate.value) : "Set date";
+  function updateDatePickText(){
+    const btn = document.getElementById("datePickBtn");
+    const txt = document.getElementById("datePickText");
+    txt.textContent = newDateVal ? fmtDate(newDateVal) : "Set date";
+    btn.classList.toggle("set", !!newDateVal);
+  }
+  document.getElementById("datePickBtn").onclick = () => {
+    openCalendar(document.getElementById("datePickBtn"), newDateVal, (v) => { newDateVal = v; updateDatePickText(); });
   };
-  function resetDatePick(){ newDate.value = ""; document.getElementById("datePickText").textContent = "Set date"; }
   document.getElementById("addGo").onclick = addTask;
   document.getElementById("newTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") addTask(); });
   load();
