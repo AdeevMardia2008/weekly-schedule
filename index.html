@@ -3,481 +3,83 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Weekly Schedule — Adeev</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>Adeev — Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
 <style>
   :root {
-    --half-height: 30px;
-    --start-hour: 5;
-    --end-hour: 23;
-    --time-col: 70px;
+    --bg: #1b1b1f;
+    --panel: #26262b;
+    --panel-2: #2e2e34;
+    --line: #38383f;
+    --text: #e8e8ea;
+    --muted: #9a9aa2;
+    --accent: #7c8cff;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #2a2a33 0%, var(--bg) 60%);
+    color: var(--text);
     min-height: 100vh;
-    padding: 28px 22px 56px;
-    color: #1f2937;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
   }
-  .container { max-width: 1560px; margin: 0 auto; }
-  header.page-head { text-align: center; margin-bottom: 20px; }
-  header.page-head h1 { color: #fff; font-size: 2.1em; letter-spacing: -0.02em; }
-  header.page-head p { color: rgba(255,255,255,0.82); margin-top: 6px; font-size: 0.95em; }
-  .toolbar {
-    display: flex; justify-content: center; align-items: center; gap: 12px;
-    margin-bottom: 20px; flex-wrap: wrap;
+  .wrap { width: 100%; max-width: 760px; text-align: center; }
+  .brand { font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+  h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .sub { color: var(--muted); font-size: 15px; margin-bottom: 40px; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 34px 28px;
+    text-align: left;
+    text-decoration: none;
+    color: var(--text);
+    transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+    display: block;
   }
-  .btn {
-    border: none; border-radius: 10px; padding: 10px 18px;
-    font-size: 0.9em; font-weight: 600; cursor: pointer;
-    display: inline-flex; align-items: center; gap: 7px;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  .card:hover { transform: translateY(-3px); border-color: var(--accent); background: var(--panel-2); }
+  .icon-box {
+    width: 52px; height: 52px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(124,140,255,0.14); color: var(--accent);
+    margin-bottom: 20px;
   }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.22); }
-  .btn:active { transform: translateY(0); }
-  .btn-primary { background: #fff; color: #5b3fa0; }
-  .btn-ghost { background: rgba(255,255,255,0.18); color: #fff; }
-  #syncStatus { color: rgba(255,255,255,0.9); font-size: 0.8em; display: inline-flex; align-items: center; gap: 6px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: #9be89b; }
-  .dot.saving { background: #ffd66b; }
-  .dot.offline { background: #ff8a8a; }
-  .board { background: #fff; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); overflow: hidden; }
-  .day-head-row {
-    display: grid; grid-template-columns: var(--time-col) repeat(7, 1fr);
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-  .day-head-row .corner { border-right: 1px solid rgba(255,255,255,0.15); }
-  .day-head {
-    color: #fff; text-align: center; padding: 15px 6px; font-weight: 700;
-    font-size: 0.95em; border-left: 1px solid rgba(255,255,255,0.15);
-  }
-  .grid-body { display: grid; grid-template-columns: var(--time-col) repeat(7, 1fr); }
-  .time-gutter { position: relative; }
-  .time-label {
-    height: var(--half-height); text-align: right; padding-right: 8px;
-    font-size: 0.7em; color: #6b7280; transform: translateY(-6px);
-    font-variant-numeric: tabular-nums; white-space: nowrap;
-  }
-  .time-label.half { color: #b6bcc7; font-size: 0.62em; }
-  .day-col { position: relative; border-left: 1px solid #eef0f4; }
-  .half-line { height: var(--half-height); box-sizing: border-box; border-bottom: 1px dashed #f3f4f7; cursor: pointer; }
-  .half-line.hour { border-bottom: 1px solid #e9ebf0; }
-  .half-line:hover { background: #f5f3fc; }
-  .event {
-    position: absolute; left: 3px; right: 3px; border-radius: 7px;
-    padding: 4px 7px; font-size: 0.72em; line-height: 1.2; overflow: hidden;
-    border-left: 3px solid; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    transition: transform 0.12s ease, box-shadow 0.12s ease; cursor: pointer; z-index: 2;
-  }
-  .event:hover { transform: scale(1.02); box-shadow: 0 4px 14px rgba(0,0,0,0.22); z-index: 20; overflow: visible; }
-  .event .title { font-weight: 600; }
-  .event .time { font-size: 0.9em; opacity: 0.75; margin-top: 1px; }
-  .event .note-badge { position: absolute; top: 2px; right: 3px; font-size: 0.85em; }
-  .fitness  { background: #fff4d6; border-left-color: #f5a623; color: #7a5200; }
-  .learning { background: #d6f0f7; border-left-color: #17a2b8; color: #0b4f5c; }
-  .work     { background: #d8f2df; border-left-color: #28a745; color: #14612a; }
-  .personal { background: #fbdce0; border-left-color: #e04156; color: #7d1622; }
-  .admin    { background: #eadcf9; border-left-color: #8a4fd0; color: #4a235a; }
-  .legend { display: flex; justify-content: center; gap: 12px; margin-top: 22px; flex-wrap: wrap; }
-  .legend-item {
-    display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.95);
-    padding: 7px 15px; border-radius: 999px; font-size: 0.82em; font-weight: 500;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-  }
-  .swatch { width: 15px; height: 15px; border-radius: 4px; border-left: 3px solid; }
-  .overlay {
-    position: fixed; inset: 0; background: rgba(20,16,40,0.55);
-    display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px;
-    backdrop-filter: blur(2px);
-  }
-  .overlay.open { display: flex; }
-  .modal {
-    background: #fff; border-radius: 16px; width: 100%; max-width: 440px;
-    padding: 26px; box-shadow: 0 24px 60px rgba(0,0,0,0.35);
-    animation: pop 0.15s ease; max-height: 90vh; overflow-y: auto;
-  }
-  @keyframes pop { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-  .modal h2 { font-size: 1.3em; margin-bottom: 18px; color: #2d2160; }
-  .field { margin-bottom: 15px; }
-  .field label { display: block; font-size: 0.8em; font-weight: 600; color: #555; margin-bottom: 6px; }
-  .field input, .field select, .field textarea {
-    width: 100%; padding: 10px 12px; border: 1.5px solid #e0e2e8; border-radius: 9px;
-    font-size: 0.92em; font-family: inherit; transition: border-color 0.12s;
-  }
-  .field textarea { resize: vertical; min-height: 70px; }
-  .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: #8a4fd0; }
-  .note-hint { font-size: 0.72em; color: #8a8f9a; margin-top: 5px; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
-  .modal-actions .btn { flex: 1; justify-content: center; }
-  .btn-save { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
-  .btn-cancel { background: #f0f0f4; color: #444; }
-  .btn-delete { background: #fde8ea; color: #c0293c; }
-  @media (max-width: 900px) {
-    body { padding: 16px 8px 40px; }
-    :root { --time-col: 52px; --half-height: 26px; }
-    .day-head { font-size: 0.72em; padding: 11px 3px; }
-    .event { font-size: 0.6em; padding: 3px 4px; }
-  }
+  .icon-box .material-icons-outlined { font-size: 28px; }
+  .card h2 { font-size: 19px; font-weight: 600; margin-bottom: 6px; }
+  .card p { color: var(--muted); font-size: 13.5px; line-height: 1.5; }
+  .go { margin-top: 18px; display: inline-flex; align-items: center; gap: 5px; color: var(--accent); font-size: 13px; font-weight: 600; }
+  .go .material-icons-outlined { font-size: 17px; }
+  footer { margin-top: 34px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 620px) { .cards { grid-template-columns: 1fr; } h1 { font-size: 27px; } }
 </style>
 </head>
 <body>
-<div class="container">
-  <header class="page-head">
-    <h1>📅 Weekly Schedule</h1>
-    <p>Adeev's week — click any empty slot to add, click an event to edit</p>
-  </header>
-  <div class="toolbar">
-    <button class="btn btn-primary" onclick="openAdd()">➕ Add Event</button>
-    <button class="btn btn-ghost" onclick="resetSchedule()">↺ Reset to Default</button>
-    <span id="syncStatus"><span class="dot" id="syncDot"></span><span id="syncText">Connecting…</span></span>
+  <div class="wrap">
+    <div class="brand">Adeev</div>
+    <h1>Planner</h1>
+    <p class="sub">Your weekly schedule and one-off tasks, in one place.</p>
+    <div class="cards">
+      <a class="card" href="calendar.html">
+        <div class="icon-box"><span class="material-icons-outlined">calendar_view_week</span></div>
+        <h2>Weekly Schedule</h2>
+        <p>Your recurring routine, laid out by the hour across the week.</p>
+        <span class="go">Open <span class="material-icons-outlined">arrow_forward</span></span>
+      </a>
+      <a class="card" href="todo.html">
+        <div class="icon-box"><span class="material-icons-outlined">checklist</span></div>
+        <h2>Tasks</h2>
+        <p>One-time to-dos with due dates, notes and priorities.</p>
+        <span class="go">Open <span class="material-icons-outlined">arrow_forward</span></span>
+      </a>
+    </div>
+    <footer>Synced across your devices</footer>
   </div>
-  <div class="board">
-    <div class="day-head-row" id="dayHeadRow"></div>
-    <div class="grid-body" id="gridBody"></div>
-  </div>
-  <div class="legend">
-    <div class="legend-item"><span class="swatch" style="background:#fff4d6;border-left-color:#f5a623;"></span>Fitness</div>
-    <div class="legend-item"><span class="swatch" style="background:#d6f0f7;border-left-color:#17a2b8;"></span>Learning</div>
-    <div class="legend-item"><span class="swatch" style="background:#d8f2df;border-left-color:#28a745;"></span>Work</div>
-    <div class="legend-item"><span class="swatch" style="background:#fbdce0;border-left-color:#e04156;"></span>Personal</div>
-    <div class="legend-item"><span class="swatch" style="background:#eadcf9;border-left-color:#8a4fd0;"></span>Admin</div>
-  </div>
-</div>
-<div class="overlay" id="overlay">
-  <div class="modal">
-    <h2 id="modalTitle">Add Event</h2>
-    <input type="hidden" id="editIndex" value="">
-    <input type="hidden" id="editDay" value="">
-    <div class="field">
-      <label>Event Name</label>
-      <input type="text" id="fName" placeholder="e.g. Gym">
-    </div>
-    <div class="field">
-      <label>Day</label>
-      <select id="fDay">
-        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
-        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
-      </select>
-    </div>
-    <div class="row2">
-      <div class="field">
-        <label>Start Time</label>
-        <input type="time" id="fStart" step="900" value="09:00">
-      </div>
-      <div class="field">
-        <label>End Time</label>
-        <input type="time" id="fEnd" step="900" value="10:00">
-      </div>
-    </div>
-    <div class="field">
-      <label>Category</label>
-      <select id="fCat">
-        <option value="fitness">Fitness</option>
-        <option value="learning">Learning</option>
-        <option value="work">Work</option>
-        <option value="personal">Personal</option>
-        <option value="admin">Admin</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Notes</label>
-      <textarea id="fNote" placeholder="Notes for this activity…"></textarea>
-      <div class="note-hint">📝 Notes are shared across every event with the same name.</div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-delete" id="btnDelete" onclick="deleteEvent()" style="display:none;">Delete</button>
-      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-save" onclick="saveEvent()">Save</button>
-    </div>
-  </div>
-</div>
-<script>
-  const SUPABASE_URL = "https://dpeqofrtsecvnnverrrd.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_HcFlABnlNvEYxkk6ybxreg_b8pmUMvT";
-  const ROW_ID = "main";
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  const START_HOUR = 5, END_HOUR = 23, HALF_PX = 30;
-  const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-  const STORAGE_KEY = "adeev_schedule_v3";
-  const DEFAULT_SCHEDULE = {
-    Monday: [
-      { name: "Stretches + Meditation + Running", start: 6.0, dur: 1.5, cat: "fitness" },
-      { name: "Golf", start: 9.0, dur: 2.0, cat: "work" },
-      { name: "GitHub Open Source", start: 12.5, dur: 0.5, cat: "work" },
-      { name: "Play Guitar", start: 13.0, dur: 0.5, cat: "learning" },
-      { name: "Build Portfolio Website", start: 14.5, dur: 1.0, cat: "work" },
-      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
-      { name: "Learn Spanish", start: 19.0, dur: 1.0, cat: "learning" },
-      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
-      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
-      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
-      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
-    ],
-    Tuesday: [
-      { name: "Surfing", start: 5.25, dur: 6.75, cat: "fitness" },
-      { name: "Socialising", start: 12.0, dur: 0.5, cat: "personal" },
-      { name: "Finance Learning", start: 13.5, dur: 1.0, cat: "learning" },
-      { name: "Socialising", start: 14.5, dur: 0.5, cat: "personal" },
-      { name: "Write Research Paper", start: 15.25, dur: 1.75, cat: "work" },
-      { name: "Build Portfolio Website", start: 17.5, dur: 1.0, cat: "work" },
-      { name: "Fix LinkedIn/GitHub Accounts", start: 19.0, dur: 1.0, cat: "admin" },
-      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
-      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
-      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
-      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
-    ],
-    Wednesday: [
-      { name: "Stretches + Meditation + Running", start: 6.0, dur: 1.5, cat: "fitness" },
-      { name: "Golf", start: 9.0, dur: 2.0, cat: "work" },
-      { name: "GitHub Open Source", start: 12.5, dur: 0.5, cat: "work" },
-      { name: "Play Guitar", start: 13.0, dur: 0.5, cat: "learning" },
-      { name: "Claude Course", start: 14.5, dur: 1.0, cat: "learning" },
-      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
-      { name: "Learn Spanish", start: 19.0, dur: 1.0, cat: "learning" },
-      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
-      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
-      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
-      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
-    ],
-    Thursday: [
-      { name: "Surfing", start: 5.25, dur: 6.75, cat: "fitness" },
-      { name: "Socialising", start: 12.0, dur: 0.5, cat: "personal" },
-      { name: "Finance Learning", start: 13.5, dur: 1.0, cat: "learning" },
-      { name: "Write Research Paper", start: 15.25, dur: 1.75, cat: "work" },
-      { name: "Explore Claude & Skills", start: 17.5, dur: 0.75, cat: "work" },
-      { name: "Socialising", start: 18.5, dur: 0.5, cat: "personal" },
-      { name: "Fix LinkedIn/GitHub Accounts", start: 19.0, dur: 1.0, cat: "admin" },
-      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
-      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
-      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
-      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
-    ],
-    Friday: [
-      { name: "Stretches + Meditation + Running", start: 6.0, dur: 1.5, cat: "fitness" },
-      { name: "Golf", start: 9.0, dur: 2.0, cat: "work" },
-      { name: "UCSD Onboarding + Packing", start: 12.5, dur: 1.0, cat: "admin" },
-      { name: "Explore Money Making Options", start: 14.5, dur: 1.0, cat: "work" },
-      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
-      { name: "Learn Spanish", start: 19.0, dur: 1.0, cat: "learning" },
-      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
-      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
-      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
-      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
-    ],
-    Saturday: [
-      { name: "Stretches + Meditation + Running + Swimming", start: 6.0, dur: 2.0, cat: "fitness" },
-      { name: "Learn Spanish", start: 9.5, dur: 1.5, cat: "learning" },
-      { name: "Write Research Paper", start: 12.0, dur: 1.5, cat: "work" },
-      { name: "Fix LinkedIn/GitHub Accounts", start: 14.5, dur: 1.0, cat: "admin" },
-      { name: "Gym", start: 16.0, dur: 2.0, cat: "fitness" },
-      { name: "UCSD Onboarding + Packing", start: 19.0, dur: 1.0, cat: "admin" },
-      { name: "Build Portfolio Website", start: 21.0, dur: 0.5, cat: "work" },
-      { name: "Reading", start: 21.5, dur: 0.25, cat: "learning" },
-      { name: "Spotify Podcast", start: 21.75, dur: 0.25, cat: "learning" },
-      { name: "Stretching / Light Yoga", start: 22.0, dur: 0.5, cat: "fitness" },
-    ],
-    Sunday: [
-      { name: "Search San Diego Activities", start: 9.0, dur: 1.0, cat: "personal" },
-      { name: "Learn Spanish", start: 10.5, dur: 1.5, cat: "learning" },
-      { name: "Search Clothing Brands + Gear", start: 12.5, dur: 1.0, cat: "personal" },
-      { name: "Format Instagram Reels", start: 14.5, dur: 0.75, cat: "personal" },
-      { name: "Delete Files/Photos", start: 16.0, dur: 1.0, cat: "admin" },
-      { name: "Build Portfolio Website", start: 17.5, dur: 1.5, cat: "work" },
-      { name: "Explore Money Making Options", start: 19.5, dur: 0.5, cat: "work" },
-      { name: "Dinner", start: 20.0, dur: 1.0, cat: "personal" },
-      { name: "Reading", start: 21.0, dur: 0.25, cat: "learning" },
-      { name: "Spotify Podcast", start: 21.25, dur: 0.25, cat: "learning" },
-      { name: "Stretching / Light Yoga", start: 21.5, dur: 0.5, cat: "fitness" },
-    ],
-  };
-  let state = { schedule: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)), notes: {} };
-  function setStatus(kind, text) {
-    const dot = document.getElementById("syncDot");
-    const txt = document.getElementById("syncText");
-    dot.className = "dot" + (kind === "saving" ? " saving" : kind === "offline" ? " offline" : "");
-    txt.textContent = text;
-  }
-  async function loadState() {
-    try {
-      const local = localStorage.getItem(STORAGE_KEY);
-      if (local) state = JSON.parse(local);
-    } catch(e) {}
-    render();
-    try {
-      const { data, error } = await sb.from("schedule_store").select("data").eq("id", ROW_ID).single();
-      if (error) throw error;
-      if (data && data.data && data.data.schedule) {
-        state = data.data;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        render();
-        setStatus("ok", "Synced");
-      } else {
-        await pushState();
-        setStatus("ok", "Synced");
-      }
-    } catch(e) {
-      setStatus("offline", "Offline (saved locally)");
-    }
-  }
-  async function pushState() {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
-    setStatus("saving", "Saving…");
-    try {
-      const { error } = await sb.from("schedule_store")
-        .upsert({ id: ROW_ID, data: state, updated_at: new Date().toISOString() });
-      if (error) throw error;
-      setStatus("ok", "Synced");
-    } catch(e) {
-      setStatus("offline", "Offline (saved locally)");
-    }
-  }
-  function fmt(h) {
-    const hh = Math.floor(h);
-    const mm = Math.round((h - hh) * 60);
-    const ampm = hh >= 12 ? "PM" : "AM";
-    let disp = hh % 12; if (disp === 0) disp = 12;
-    return `${disp}:${mm.toString().padStart(2,"0")} ${ampm}`;
-  }
-  function hoursToHHMM(h) {
-    const hh = Math.floor(h);
-    const mm = Math.round((h - hh) * 60);
-    return `${hh.toString().padStart(2,"0")}:${mm.toString().padStart(2,"0")}`;
-  }
-  function hhmmToHours(s) {
-    const [h, m] = s.split(":").map(Number);
-    return h + m/60;
-  }
-  function render() {
-    const sched = state.schedule;
-    const notes = state.notes || {};
-    const headRow = document.getElementById("dayHeadRow");
-    headRow.innerHTML = '<div class="corner"></div>';
-    DAYS.forEach(day => {
-      const d = document.createElement("div");
-      d.className = "day-head";
-      d.textContent = day;
-      headRow.appendChild(d);
-    });
-    const body = document.getElementById("gridBody");
-    body.innerHTML = "";
-    const halfSlots = (END_HOUR - START_HOUR) * 2;
-    const gutter = document.createElement("div");
-    gutter.className = "time-gutter";
-    for (let i = 0; i < halfSlots; i++) {
-      const totalMin = (START_HOUR * 60) + i * 30;
-      const lbl = document.createElement("div");
-      const isHalf = (totalMin % 60) !== 0;
-      lbl.className = "time-label" + (isHalf ? " half" : "");
-      lbl.textContent = fmt(totalMin / 60);
-      gutter.appendChild(lbl);
-    }
-    body.appendChild(gutter);
-    DAYS.forEach(day => {
-      const col = document.createElement("div");
-      col.className = "day-col";
-      for (let i = 0; i < halfSlots; i++) {
-        const totalMin = (START_HOUR * 60) + i * 30;
-        const line = document.createElement("div");
-        line.className = "half-line" + ((totalMin % 60 === 0) ? " hour" : "");
-        const slotHour = totalMin / 60;
-        line.onclick = () => openAdd(day, slotHour);
-        col.appendChild(line);
-      }
-      (sched[day] || []).forEach((ev, idx) => {
-        const el = document.createElement("div");
-        el.className = `event ${ev.cat}`;
-        const top = (ev.start - START_HOUR) * 2 * HALF_PX;
-        const height = ev.dur * 2 * HALF_PX;
-        el.style.top = top + "px";
-        el.style.height = Math.max(height - 3, 16) + "px";
-        const hasNote = notes[ev.name] && notes[ev.name].trim();
-        el.innerHTML = `${hasNote ? '<span class="note-badge">📝</span>' : ''}<div class="title">${ev.name}</div><div class="time">${fmt(ev.start)} – ${fmt(ev.start + ev.dur)}</div>`;
-        if (hasNote) el.title = notes[ev.name];
-        el.onclick = (e) => { e.stopPropagation(); openEdit(day, idx); };
-        col.appendChild(el);
-      });
-      body.appendChild(col);
-    });
-  }
-  const overlay = document.getElementById("overlay");
-  function openAdd(day, startHour) {
-    document.getElementById("modalTitle").textContent = "Add Event";
-    document.getElementById("editIndex").value = "";
-    document.getElementById("editDay").value = "";
-    document.getElementById("fName").value = "";
-    document.getElementById("fDay").value = day || "Monday";
-    const s = startHour != null ? startHour : 9;
-    document.getElementById("fStart").value = hoursToHHMM(s);
-    document.getElementById("fEnd").value = hoursToHHMM(s + 1);
-    document.getElementById("fCat").value = "work";
-    document.getElementById("fNote").value = "";
-    document.getElementById("btnDelete").style.display = "none";
-    overlay.classList.add("open");
-    document.getElementById("fName").focus();
-  }
-  function openEdit(day, idx) {
-    const ev = state.schedule[day][idx];
-    document.getElementById("modalTitle").textContent = "Edit Event";
-    document.getElementById("editIndex").value = idx;
-    document.getElementById("editDay").value = day;
-    document.getElementById("fName").value = ev.name;
-    document.getElementById("fDay").value = day;
-    document.getElementById("fStart").value = hoursToHHMM(ev.start);
-    document.getElementById("fEnd").value = hoursToHHMM(ev.start + ev.dur);
-    document.getElementById("fCat").value = ev.cat;
-    document.getElementById("fNote").value = (state.notes && state.notes[ev.name]) || "";
-    document.getElementById("btnDelete").style.display = "block";
-    overlay.classList.add("open");
-  }
-  function closeModal() { overlay.classList.remove("open"); }
-  function saveEvent() {
-    const name = document.getElementById("fName").value.trim();
-    const day = document.getElementById("fDay").value;
-    const start = hhmmToHours(document.getElementById("fStart").value);
-    const end = hhmmToHours(document.getElementById("fEnd").value);
-    const cat = document.getElementById("fCat").value;
-    const note = document.getElementById("fNote").value.trim();
-    if (!name) { alert("Please enter an event name."); return; }
-    if (end <= start) { alert("End time must be after start time."); return; }
-    const newEv = { name, start, dur: end - start, cat };
-    const editIdx = document.getElementById("editIndex").value;
-    const editDay = document.getElementById("editDay").value;
-    if (editIdx !== "") {
-      state.schedule[editDay].splice(parseInt(editIdx), 1);
-    }
-    state.schedule[day].push(newEv);
-    state.schedule[day].sort((a,b) => a.start - b.start);
-    if (!state.notes) state.notes = {};
-    if (note) state.notes[name] = note;
-    else delete state.notes[name];
-    render();
-    pushState();
-    closeModal();
-  }
-  function deleteEvent() {
-    const editIdx = document.getElementById("editIndex").value;
-    const editDay = document.getElementById("editDay").value;
-    if (editIdx === "") return;
-    if (confirm("Delete this event?")) {
-      state.schedule[editDay].splice(parseInt(editIdx), 1);
-      render();
-      pushState();
-      closeModal();
-    }
-  }
-  function resetSchedule() {
-    if (confirm("Reset the whole calendar back to the original schedule? This erases your edits and notes.")) {
-      state = { schedule: JSON.parse(JSON.stringify(DEFAULT_SCHEDULE)), notes: {} };
-      render();
-      pushState();
-    }
-  }
-  overlay.addEventListener("click", (e) => { if (e.target === overlay) closeModal(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeModal(); });
-  loadState();
-</script>
 </body>
 </html>
