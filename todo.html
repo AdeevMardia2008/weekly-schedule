@@ -17,8 +17,9 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-  .app { display: flex; flex-direction: column; height: 100vh; }
-  .topbar { display: flex; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+  .bg-photo { position: fixed; inset: 0; z-index: 0; background-image: url('https://raw.githubusercontent.com/AdeevMardia2008/weekly-schedule/main/wave.jpg'); background-size: cover; background-position: center; }
+  .app { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100vh; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 16px 24px; border-bottom: 1px solid var(--line); flex-shrink: 0; background: var(--panel); }
   .topbar h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
   .topbar .count { color: var(--muted); font-size: 13px; font-weight: 500; }
   .spacer { flex: 1; }
@@ -140,6 +141,7 @@
 </style>
 </head>
 <body>
+<div class="bg-photo"></div>
 <div class="app">
   <div class="topbar">
     <h1>Tasks</h1>
