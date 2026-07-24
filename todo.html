@@ -304,11 +304,12 @@
       <div class="cal-grid" style="margin-top:2px">${cells}</div>
       <div class="cal-foot"><button class="cal-clear">Clear</button><button class="cal-today">Today</button></div>
     `;
-    calPop.querySelectorAll(".cal-nav").forEach(b => b.onclick = () => { calMonth = new Date(year, month + Number(b.dataset.nav), 1); renderCal(); });
-    calPop.querySelectorAll(".cal-day[data-d]").forEach(c => c.onclick = () => { if (calOnPick) calOnPick(c.dataset.d); closeCalendar(); });
-    calPop.querySelector(".cal-clear").onclick = () => { if (calOnPick) calOnPick(null); closeCalendar(); };
-    calPop.querySelector(".cal-today").onclick = () => { if (calOnPick) calOnPick(todayStr()); closeCalendar(); };
+    calPop.querySelectorAll(".cal-nav").forEach(b => b.onclick = (e) => { e.stopPropagation(); calMonth = new Date(year, month + Number(b.dataset.nav), 1); renderCal(); });
+    calPop.querySelectorAll(".cal-day[data-d]").forEach(c => c.onclick = (e) => { e.stopPropagation(); if (calOnPick) calOnPick(c.dataset.d); closeCalendar(); });
+    calPop.querySelector(".cal-clear").onclick = (e) => { e.stopPropagation(); if (calOnPick) calOnPick(null); closeCalendar(); };
+    calPop.querySelector(".cal-today").onclick = (e) => { e.stopPropagation(); if (calOnPick) calOnPick(todayStr()); closeCalendar(); };
   }
+  calPop.addEventListener("click", (e) => { e.stopPropagation(); });
   document.addEventListener("click", (e) => {
     if (calPop.style.display === "block" && !calPop.contains(e.target) && !e.target.closest(".date-pick") && !e.target.closest("#dDateRow")) closeCalendar();
   });
