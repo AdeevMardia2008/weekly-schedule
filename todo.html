@@ -74,6 +74,7 @@
   .add-go { background: var(--accent); border: none; color: #fff; width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .add-go:hover { filter: brightness(1.08); }
   .add-go .material-icons-outlined { font-size: 20px; }
+
   .detail { width: 0; flex-shrink: 0; background: var(--panel); border-left: 1px solid var(--line); overflow: hidden; transition: width 0.2s ease; display: flex; flex-direction: column; }
   .detail.open { width: 340px; }
   .detail-inner { width: 340px; padding: 20px; display: flex; flex-direction: column; height: 100%; }
@@ -106,6 +107,8 @@
   #status { font-size: 11.5px; color: var(--faint); display: inline-flex; align-items: center; gap: 5px; }
   .dot { width: 7px; height: 7px; border-radius: 50%; background: #7bd88f; }
   .dot.saving { background: var(--star); } .dot.offline { background: var(--danger); }
+
+  /* Custom calendar popup */
   .cal-pop { position: fixed; z-index: 200; display: none; width: 268px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px; box-shadow: 0 16px 44px rgba(0,0,0,0.45); }
   .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
   .cal-month { font-size: 14px; font-weight: 600; }
@@ -126,6 +129,10 @@
   .ctx-item { display: flex; align-items: center; gap: 11px; padding: 9px 11px; font-size: 13px; color: var(--text); cursor: pointer; border-radius: 7px; }
   .ctx-item:hover { background: var(--hover); }
   .ctx-item .material-icons-outlined { font-size: 18px; color: var(--muted); }
+  .ctx-item.danger { color: var(--danger); }
+  .ctx-item.danger .material-icons-outlined { color: var(--danger); }
+  .ctx-sep { height: 1px; background: var(--line); margin: 5px 4px; }
+
   @media (max-width: 720px) {
     .detail.open { width: 100%; position: fixed; right: 0; top: 0; bottom: 0; z-index: 50; }
     .detail-inner { width: 100%; }
@@ -189,20 +196,26 @@
     </div>
   </div>
 </div>
+
 <div class="cal-pop" id="calPop"></div>
 <div class="ctx-menu" id="ctxMenu">
   <div class="ctx-item" data-act="today"><span class="material-icons-outlined">today</span>Due today</div>
   <div class="ctx-item" data-act="tomorrow"><span class="material-icons-outlined">event</span>Due tomorrow</div>
   <div class="ctx-item" data-act="pick"><span class="material-icons-outlined">calendar_month</span>Pick a due date</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" data-act="delete"><span class="material-icons-outlined">delete_outline</span>Delete task</div>
 </div>
+
 <script>
   const SUPABASE_URL = "https://dpeqofrtsecvnnverrrd.supabase.co";
   const SUPABASE_KEY = "sb_publishable_HcFlABnlNvEYxkk6ybxreg_b8pmUMvT";
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
   let todos = [];
   let filter = "all";
   let selectedId = null;
   let newDateVal = null;
+
   const FILTERS = [
     { key: "all", label: "All", icon: "list" },
     { key: "overdue", label: "Overdue", icon: "event_busy" },
@@ -213,10 +226,13 @@
     { key: "important", label: "Important", icon: "star" },
     { key: "completed", label: "Completed", icon: "check_circle" },
   ];
+
   function setStatus(kind, text) {
     document.getElementById("dot").className = "dot" + (kind === "saving" ? " saving" : kind === "offline" ? " offline" : "");
     document.getElementById("statusText").textContent = text;
   }
+
+  // ---- local-time date helpers (no UTC parsing) ----
   function ymd(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
   function todayStr(){ return ymd(new Date()); }
   function parseYmd(s){ if(!s) return null; const [y,m,d]=s.split("-").map(Number); return new Date(y, m-1, d); }
@@ -238,8 +254,11 @@
     if (diff <= 7) return "week";
     return "later";
   }
+
+  // ---- custom calendar popup ----
   const calPop = document.getElementById("calPop");
   let calMonth = null, calSelected = null, calOnPick = null, calAnchor = null;
+
   function openCalendar(anchor, currentVal, onPick){
     calOnPick = onPick; calSelected = currentVal || null; calAnchor = anchor;
     const base = currentVal ? parseYmd(currentVal) : new Date();
@@ -263,7 +282,7 @@
   function renderCal(){
     const year = calMonth.getFullYear(), month = calMonth.getMonth();
     const monthName = calMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+    const startOffset = (new Date(year, month, 1).getDay() + 6) % 7; // Monday-first
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const tStr = todayStr();
     const wd = ["M","T","W","T","F","S","S"];
@@ -294,6 +313,8 @@
     if (calPop.style.display === "block" && !calPop.contains(e.target) && !e.target.closest(".date-pick") && !e.target.closest("#dDateRow")) closeCalendar();
   });
   window.addEventListener("resize", () => { if (calPop.style.display === "block") positionCal(); });
+
+  // ---- data ----
   async function load() {
     setStatus("saving", "Loading");
     try {
@@ -363,6 +384,7 @@
     return el;
   }
   function escapeHtml(s){ return (s||"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
   async function persist(t, patch) {
     Object.assign(t, patch);
     render(); if (t.id === selectedId) syncDetail();
@@ -372,10 +394,11 @@
   }
   function toggleComplete(t){ persist(t, { completed: !t.completed }); }
   function toggleImportant(t){ persist(t, { important: !t.important }); }
+
   async function addTask() {
     const input = document.getElementById("newTitle");
     const title = input.value.trim(); if (!title) return;
-    const due = newDateVal || todayStr();
+    const due = newDateVal || todayStr(); // default to today unless a date was explicitly picked
     const row = { title, due_date: due, important: false, completed: false, note: "", sort_order: Date.now() };
     input.value = ""; newDateVal = null; updateDatePickText();
     setStatus("saving", "Saving");
@@ -390,6 +413,8 @@
     try { const { error } = await sb.from("todos").delete().eq("id", id); if (error) throw error; setStatus("ok","Synced"); }
     catch(e){ setStatus("offline","Offline"); }
   }
+
+  // ---- detail panel ----
   function openDetail(id) { selectedId = id; document.getElementById("detail").classList.add("open"); render(); syncDetail(); }
   function closeDetail() { selectedId = null; document.getElementById("detail").classList.remove("open"); render(); }
   function syncDetail() {
@@ -409,6 +434,7 @@
     document.getElementById("dNote").value = t.note || "";
   }
   function cur(){ return todos.find(x => x.id === selectedId); }
+
   document.getElementById("dClose").onclick = closeDetail;
   document.getElementById("dCheck").onclick = () => { const t = cur(); if (t) toggleComplete(t); };
   document.getElementById("dCompleteRow").onclick = () => { const t = cur(); if (t) toggleComplete(t); };
@@ -421,6 +447,8 @@
   document.getElementById("dTitle").onblur = (e) => { const t = cur(); const v = e.target.value.trim(); if (t && v && v !== t.title) persist(t, { title: v }); };
   document.getElementById("dTitle").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } };
   document.getElementById("dNote").onblur = (e) => { const t = cur(); if (t && e.target.value !== t.note) persist(t, { note: e.target.value }); };
+
+  // ---- add bar ----
   function updateDatePickText(){
     const btn = document.getElementById("datePickBtn");
     const txt = document.getElementById("datePickText");
@@ -432,10 +460,13 @@
   };
   document.getElementById("addGo").onclick = addTask;
   document.getElementById("newTitle").addEventListener("keydown", (e) => { if (e.key === "Enter") addTask(); });
+
+  // ---- right-click context menu on a task ----
   const ctxMenu = document.getElementById("ctxMenu");
-  let ctxTask = null;
+  let ctxTask = null, ctxRow = null;
   function openCtxMenu(x, y, t) {
     ctxTask = t;
+    ctxRow = document.querySelector(".task.ctx-open");
     ctxMenu.style.display = "block";
     const w = ctxMenu.offsetWidth, h = ctxMenu.offsetHeight;
     if (x + w > window.innerWidth - 8) x = window.innerWidth - w - 8;
@@ -455,6 +486,7 @@
         const anchor = { getBoundingClientRect: () => ({ top: parseFloat(ctxMenu.style.top), bottom: parseFloat(ctxMenu.style.top)+10, left: parseFloat(ctxMenu.style.left), right: parseFloat(ctxMenu.style.left)+10, width: 10, height: 10 }) };
         openCalendar(anchor, t.due_date, (v) => persist(t, { due_date: v || null }));
       }
+      else if (act === "delete") { if (confirm("Delete this task?")) deleteTask(t.id); }
       closeCtxMenu();
     };
   });
@@ -462,6 +494,7 @@
   document.addEventListener("scroll", closeCtxMenu, true);
   window.addEventListener("resize", closeCtxMenu);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeCtxMenu(); closeCalendar(); } });
+
   load();
 </script>
 </body>
